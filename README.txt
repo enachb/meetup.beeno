@@ -244,3 +244,8 @@ Notes
 
 - If a new index is being added, it is up to the user to create index entries for already existing entities.
   Please note that Beeno serializes column values using the Google Protocol Buffers data format.
+
+- Currently deleting an entity does NOT remove corresponding index entries.
+  Adding this feature is actively being worked on.
+
+  
