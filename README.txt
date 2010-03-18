@@ -196,7 +196,7 @@ Query API
 Some query examples from the feeds implementation.
 
 
-Find all items related to a discussion::
+Find all items related to a discussion:
 
     EntityService<DiscussionItem> service = EntityService.create(DiscussionItem.class);
     Query query =
@@ -205,12 +205,42 @@ Find all items related to a discussion::
     List items = query.execute();
 
 
-Find first 5 greetings from a given member::
+Find first 5 greetings from a given member:
 
     EntityService<GreetingItem> service = EntityService.create(GreetingItem.class);
     Query query = 
         service.query()
                .using( Criteria.eq("memberId", memberId) )
-               .where( Criteria.eq(“itemType”, “chapter_greeting”) )
+               .where( Criteria.eq("itemType", "chapter_greeting") )
 			   .limit( 5 );
     List items = query.execute();
+    
+Notes
+=====
+
+- Beeno does not create specified index tables and expects them to be already available at execution time.
+
+- The .using() method expects a single criteria specifying the index to be used.
+  Beeno currently does not try to be smart and find out the best index to use for a given query.
+  Be prepared that if you do specify multiple criteria Beeno might just return the entire table back as a result.
+  .using() is limited to indices only - if you know the actual row key, you must use the .get() method.
+  
+- The .where() method is being used by the HBase Scanner to filter encountered records 
+  using the specified index in the .using() method.
+
+- The index timestamp sorting is based on a column (unless you use branch builtin_ts) using a Long epoch.
+
+- Add'l columns used in .where() Criteria have to be specified as "extra_cols=" during index definition
+
+  indexes = {@HIndex(date_col="photo_props:create_dtm", 
+             date_invert=true, 
+             extra_cols={"photo_props:album_id","photo_props:photo_id"})}
+
+  query = service.query()
+                 .using(Criteria.eq("memberId","3"))
+                 .where(Criteria.and(Criteria.eq("albumId", "561"),Criteria.eq("photoId","32"))); 
+ 
+  Please note the different way of referencing columns depending on the context ("albumId" vs. "album_id").
+
+- If a new index is being added, it is up to the user to create index entries for already existing entities.
+  Please note that Beeno serializes column values using the Google Protocol Buffers data format.
