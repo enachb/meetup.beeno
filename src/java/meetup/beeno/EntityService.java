@@ -285,25 +285,93 @@ public class EntityService<T> {
 	 */
 	public void delete(String rowKey) throws HBaseException {
 		EntityInfo info = getInfo();
-
-		// commit the update
-		HTable table = null;
-		try {
-			table = HUtil.getTable(info.getTablename());
-			Delete op = new Delete( Bytes.toBytes(rowKey) );
-			table.delete(op);
-			
-			if (log.isDebugEnabled())
-				log.debug(String.format("Committed delete for key '%s'", rowKey));
-		}
-		catch (IOException ioe) {
-			throw new HBaseException(String.format("Error deleting row for key '%s'", rowKey), ioe);
-		}
-		finally {
-			HUtil.releaseTable(table);
-		}
+		delete(rowKey,info.getTablename());
 	}
+	
+	/**
+	 * delete the passing in entity and associated indexes
+	 * @param entity
+	 * @return true if deleted otherwise return false
+	 * @throws MappingException
+	 * @throws HBaseException
+	 */
+	public boolean delete(T entity) 
+	throws MappingException, HBaseException {
+	   
+      EntityInfo entityInfo = EntityMetadata.getInstance().getInfo(entity.getClass());
+      PropertyDescriptor keyprop = entityInfo.getKeyProperty();
+      byte[] rowKey = readProperty(entity, keyprop, false);
+      return delete(Bytes.toString(rowKey), true);
+	      
+	}
+	
+	/**
+	 * delete a specified row by a row key and also if it should delete all the associated indexes
+	 * @param rowKey
+	 * @param deleteIndex
+	 * @return
+	 * @throws HBaseException
+	 */
+	public boolean delete(String rowKey, boolean deleteIndex) 
+	throws HBaseException {
+	   
+      T entity = get(rowKey);
+	   boolean deleted = false;
+	   // FIXME: This is using the existing Put object to get Family Map
+	   // maybe use Delete to get all the info
+	   // Delete the all the associated indexes
+	   if(deleteIndex) {
+   	   Put entityUpdate = getUpdateForEntity(entity);
+   	   if(null != entity) {
+   	      EntityInfo info = EntityMetadata.getInstance().getInfo(entity.getClass());
+   	      List<IndexMapping> indexes = info.getMappedIndexes();
+            for (IndexMapping idx : indexes) {
+               EntityIndexer indexer = idx.getGenerator();
+               Map<byte[],List<KeyValue>> familyMap = entityUpdate.getFamilyMap();
 
+               // store all the indexed values
+               byte[] primaryVal = indexer.getValue(indexer.getPrimaryField().family(), indexer.getPrimaryField().column(), familyMap);
+               if (primaryVal != null && primaryVal.length > 0) {
+                  Long date = indexer.getDateValue(familyMap);
+                  byte[] byteKey = indexer.createIndexKey(primaryVal, date, entityUpdate.getRow());
+                  if (log.isDebugEnabled()) {
+                     log.debug("The index key to be deleted: "+Bytes.toString(byteKey));
+                  }
+                  delete(Bytes.toString(byteKey),idx.getTableName());
+               }
+            }
+   	   }
+   	   //Delete the actually row
+         delete(rowKey);
+         deleted = true;
+	   }
+	   return deleted;
+	}
+	
+	  /**
+    * delete a specified row by rowKey and table name.
+    * @param rowKey
+    * @param tableName
+    * @throws HBaseException
+    */
+   protected void delete(String rowKey, String tableName) throws HBaseException {
+      // commit the update
+      HTable table = null;
+      try {
+         table = HUtil.getTable(tableName);
+         Delete op = new Delete( Bytes.toBytes(rowKey) );
+         table.delete(op);
+         
+         if (log.isDebugEnabled())
+            log.debug(String.format("Committed delete for key '%s'", rowKey));
+      }
+      catch (IOException ioe) {
+         throw new HBaseException(String.format("Error deleting row for key '%s'", rowKey), ioe);
+      }
+      finally {
+         HUtil.releaseTable(table);
+      }
+   }
 
 	public void deleteProperty(String rowKey, String propertyName)
 			throws HBaseException {
@@ -400,7 +468,7 @@ public class EntityService<T> {
 							tableUpdates.addAll(indexUpdates);
 							updatesByTable.put(indexer.getIndexTable(), tableUpdates);
 						}
-					}					
+					}
 				}
 			}
 
@@ -475,7 +543,7 @@ public class EntityService<T> {
 	 * @return
 	 * @throws HBaseException
 	 */
-	public int update(Query query, EntityUpdate<T> updater) throws HBaseException {
+	public int update(Query<T> query, EntityUpdate<T> updater) throws HBaseException {
 		List<T> items = query.execute();
 		List<T> tosave = new ArrayList<T>(items.size());
 		for (T item : items) {

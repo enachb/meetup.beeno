@@ -7,6 +7,7 @@ import java.util.Map;
 import meetup.beeno.mapping.IndexMapping;
 import meetup.beeno.util.HUtil;
 import meetup.beeno.util.PBUtil;
+import meetup.beeno.util.HUtil.HCol;
 
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
@@ -60,6 +61,10 @@ public class EntityIndexer {
 				throw new IllegalArgumentException("Unable to instantiate key factory class", e);
 			}
 		}
+	}
+	
+	public HCol getPrimaryField() {
+	   return this.primaryField;
 	}
 	
 	public String getIndexTable() { return this.indexTable; }

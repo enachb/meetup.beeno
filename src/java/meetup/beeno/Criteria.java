@@ -69,6 +69,8 @@ public class Criteria implements Externalizable {
 	public static Expression and(Expression... expr) {
 		CompoundExpression wrapper = new CompoundExpression(true);
 		for (Expression e : expr) {
+		   if (log.isDebugEnabled())
+		      log.debug(String.format("Adding AND expression %s", expr.toString()));
 			wrapper.add(e);
 		}
 
