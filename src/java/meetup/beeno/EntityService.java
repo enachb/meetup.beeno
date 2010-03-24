@@ -321,8 +321,8 @@ public class EntityService<T> {
 	   // maybe use Delete to get all the info
 	   // Delete the all the associated indexes
 	   if(deleteIndex) {
-   	   Put entityUpdate = getUpdateForEntity(entity);
    	   if(null != entity) {
+   	      Put entityUpdate = getUpdateForEntity(entity);
    	      EntityInfo info = EntityMetadata.getInstance().getInfo(entity.getClass());
    	      List<IndexMapping> indexes = info.getMappedIndexes();
             for (IndexMapping idx : indexes) {
@@ -340,10 +340,10 @@ public class EntityService<T> {
                   delete(Bytes.toString(byteKey),idx.getTableName());
                }
             }
+            //Delete the actually row
+            delete(rowKey);
+            deleted = true;
    	   }
-   	   //Delete the actually row
-         delete(rowKey);
-         deleted = true;
 	   }
 	   return deleted;
 	}
