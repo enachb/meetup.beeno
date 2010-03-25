@@ -37,7 +37,7 @@ public class SimpleEntity {
         this.photoId = photoId; 
     }
 
-    @HProperty(family="props", name="intcol")
+    @HProperty(family="props", name="intcol", indexes = {@HIndex(date_col="props:updated", date_invert=true)})
     public int getIntProperty() { return intProperty; }
     public void setIntProperty( int intProperty ) {	
         this.intProperty = intProperty;	
